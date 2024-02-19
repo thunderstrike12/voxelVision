@@ -24,6 +24,8 @@ public:
 	float4* accumulator;
 	Scene scene;
 	Camera camera;
+
+	float3 lightDir = normalize(float3(-10, 7, -2));
 };
 
 } // namespace Tmpl8

@@ -1,0 +1,16 @@
+﻿  template.cpp
+  imgui.cpp
+  imgui_draw.cpp
+  imgui_impl_glfw.cpp
+  imgui_impl_opengl3.cpp
+  imgui_tables.cpp
+  imgui_widgets.cpp
+  opencl.cpp
+  opengl.cpp
+  scene.cpp
+  surface.cpp
+  tmpl8math.cpp
+  renderer.cpp
+  Generating Code...
+     Creating library C:\Users\SKIKK\Documents\BUas\perforce\Year1\BlockC\voxelVision\x64\voxpopuli_debug.lib and object C:\Users\SKIKK\Documents\BUas\perforce\Year1\BlockC\voxelVision\x64\voxpopuli_debug.exp
+  tmpl_2024-vox.vcxproj -> C:\Users\SKIKK\Documents\BUas\perforce\Year1\BlockC\voxelVision\x64\voxpopuli_debug.exe
