@@ -75,6 +75,8 @@ void Renderer::Init()
 		fread( &camera, 1, sizeof( Camera ), f );
 		fclose( f );
 	}
+
+	pLight.add(float3(-5, -5, -5));
 }
 
 // -----------------------------------------------------------
@@ -92,9 +94,18 @@ float3 Renderer::Trace( Ray& ray )
 	/* visualize distance */ // return float3( 1 / (1 + ray.t) );
 	/* visualize albedo */  //return albedo;
 
+	float shadowStrength = 1;
+	// Cast shadow ray
+	Ray shadowRay(I, normalize(float3(-lightDir.x, -lightDir.y, -lightDir.z)));
+	if (scene.IsOccluded(shadowRay))
+		shadowStrength = sa;  // Shadow is present
+
+	float lightBrightness = pLight.getBrightness(I, s);//broken
+
 	float angle = dot(N, lightDir);
 	float lightStrength = 1 / angle;
-	return albedo * lightStrength;
+
+	return albedo * lightStrength * shadowStrength * lightBrightness;
 }
 
 // -----------------------------------------------------------
@@ -136,6 +147,13 @@ void Renderer::UI()
 	Ray r = camera.GetPrimaryRay( (float)mousePos.x, (float)mousePos.y );
 	scene.FindNearest( r );
 	ImGui::Text( "voxel: %i", r.voxel );
+	ImGui::SliderFloat("shadow strneght", &sa, 0.0f, 1.0f);
+
+	ImGui::SliderFloat("x", &pLight.lights[1].x, 0.0f, 100.0f);
+	ImGui::SliderFloat("y", &pLight.lights[1].y, 0.0f, 100.0f);
+	ImGui::SliderFloat("z", &pLight.lights[1].z, 0.0f, 100.0f);
+
+	ImGui::SliderFloat("point light strnegth", &s, 0.0f, 10.0f);
 }
 
 // -----------------------------------------------------------

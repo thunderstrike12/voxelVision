@@ -23,7 +23,7 @@ float3 Ray::GetAlbedo() const
 	uint g = (voxel >> 8) & 255;
 	uint b = voxel & 255;
 
-	return float3( r, g, b ) / 256.0f; // TODO: base color on voxel value.
+	return float3( r, g, b ) / 256.0f;
 }
 
 Cube::Cube( const float3 pos, const float3 size )
