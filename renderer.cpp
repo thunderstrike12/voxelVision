@@ -75,8 +75,10 @@ void Renderer::Init()
 		fread( &camera, 1, sizeof( Camera ), f );
 		fclose( f );
 	}
-
-	pLight.add(float3(-5, -5, -5));
+	
+	pLight.push_back(PointLight(float3(.458, .700, .553), float3(0.01, 0, 0)));
+	pLight.push_back(PointLight(float3(.488, .730, .553), float3(0, 0, 0.01)));
+	pLight.push_back(PointLight(float3(.488, .700, .583), float3(0, 0.01, 0)));
 }
 
 // -----------------------------------------------------------
@@ -85,7 +87,7 @@ void Renderer::Init()
 float3 Renderer::Trace( Ray& ray )
 {
 	scene.FindNearest( ray );
-	if (ray.voxel == 0) return float3(1); // or a fancy sky color
+	if (ray.voxel == 0) return float3(0); // or a fancy sky color
 	float3 I = ray.O + ray.t * ray.D;
 	static const float3 L = normalize( float3( 1, 4, 0.5f ) );
 	float3 N = ray.GetNormal();
@@ -94,18 +96,44 @@ float3 Renderer::Trace( Ray& ray )
 	/* visualize distance */ // return float3( 1 / (1 + ray.t) );
 	/* visualize albedo */  //return albedo;
 
+	float3 pLightColor = 0;
+	for (int i = 0; i < pLight.size(); i++)
+	{
+		float3 dir = pLight[i].pos - I;
+		float dist = length(dir);
+		dir = normalize(dir);
+		float d = dot(N, dir);
+		if (d <= 0) {
+			continue;
+		}
+		if (!scene.IsOccluded(Ray(I, dir, dist))) {
+			//albedo *= 0.25f;
+			pLightColor += (pLight[i].color * (1 / (dist * dist))) * d;
+		}
+	}
+	
+	float3 dirLightColor = 0;
+	float angle = dot(N, normalize(-lightDir));
+
 	float shadowStrength = 1;
 	// Cast shadow ray
-	Ray shadowRay(I, normalize(float3(-lightDir.x, -lightDir.y, -lightDir.z)));
-	if (scene.IsOccluded(shadowRay))
-		shadowStrength = sa;  // Shadow is present
+	Ray shadowRay(I, -lightDir);
+	if (scene.IsOccluded(shadowRay)) {
+		shadowStrength = 0;
+	}
+	if (angle <= 0) {
+		shadowStrength = 0;
+	}
+	dirLightColor = albedo * angle * shadowStrength;
 
-	float lightBrightness = pLight.getBrightness(I, s);//broken
+	return dirLightColor + pLightColor;
+		//shadowStrength = sa;  // Shadow is present
 
-	float angle = dot(N, lightDir);
-	float lightStrength = 1 / angle;
 
-	return albedo * lightStrength * shadowStrength * lightBrightness;
+	//
+	//float lightStrength = 1 / angle;
+
+	//return albedo * lightStrength * shadowStrength ;
 }
 
 // -----------------------------------------------------------
@@ -147,13 +175,10 @@ void Renderer::UI()
 	Ray r = camera.GetPrimaryRay( (float)mousePos.x, (float)mousePos.y );
 	scene.FindNearest( r );
 	ImGui::Text( "voxel: %i", r.voxel );
-	ImGui::SliderFloat("shadow strneght", &sa, 0.0f, 1.0f);
 
-	ImGui::SliderFloat("x", &pLight.lights[1].x, 0.0f, 100.0f);
-	ImGui::SliderFloat("y", &pLight.lights[1].y, 0.0f, 100.0f);
-	ImGui::SliderFloat("z", &pLight.lights[1].z, 0.0f, 100.0f);
-
-	ImGui::SliderFloat("point light strnegth", &s, 0.0f, 10.0f);
+	ImGui::SliderFloat3("light direction", &lightDir.x, -1.0f, 1.0f);
+	ImGui::SliderFloat3("plight pos", &pLight[0].pos.x, -1.0f, 1.0f);
+	ImGui::SliderFloat("plight rad", &pLight[0].radius, 0.0f, 10.0f);
 }
 
 // -----------------------------------------------------------

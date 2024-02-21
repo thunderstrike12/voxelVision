@@ -1,8 +1,11 @@
 #pragma once
+#include "src/PointLight.h"
+
+class PointLight;
 
 namespace Tmpl8
 {
-
+	
 class Renderer : public TheApp
 {
 public:
@@ -25,7 +28,10 @@ public:
 	Scene scene;
 	Camera camera;
 
+
 	float3 lightDir = normalize(float3(-10, 7, -2));
+
+	vector <PointLight> pLight;
 };
 
 } // namespace Tmpl8
