@@ -26,6 +26,16 @@ float3 Ray::GetAlbedo() const
 	return float3( r, g, b ) / 256.0f;
 }
 
+int Ray::GetMaterial() const
+{
+	return voxel;
+}
+
+float Tmpl8::Ray::GetReflectivity(const float3& I) const
+{
+	return 0.0f;
+}
+
 Cube::Cube( const float3 pos, const float3 size )
 {
 	// set cube bounds
@@ -74,8 +84,13 @@ Scene::Scene()
 			float fx = 0;
 			for (int x = 0; x < WORLDSIZE; x++, fx += 1.0f / WORLDSIZE)
 			{
-				const float n = noise3D( fx, fy, fz );
-				Set( x, y, z, n > 0.09f ? 0xff0000 : 0 );
+				const float n = noise3D(fx, fy, fz);
+				if (rand() % 5) {
+					Set(x, y, z, n > 0.09f ? 1 : 0);
+				}
+				else {
+					Set(x, y, z, n > 0.09f ? 2 : 0);
+				}
 			}
 		}
 	}
@@ -142,29 +157,25 @@ void Scene::FindNearest( Ray& ray ) const
 		// - This code can be ported to GPU.
 	}
 
-bool Scene::IsOccluded( const Ray& ray ) const
+bool Scene::IsOccluded(const Ray& ray) const
 {
 	// setup Amanatides & Woo grid traversal
 	DDAState s, bs;
-	if (!Setup3DDDA( ray, s )) return false;
+	if (!Setup3DDDA(ray, s)) return false;
 	// start stepping
-	while (1)
+	while (s.t < ray.t)
 	{
 		const uint cell = grid[s.X + s.Y * GRIDSIZE + s.Z * GRIDSIZE2];
-		if (cell)
-		{
-			// we hit a solid voxel
-			return true;
-		}
+		if (cell) /* we hit a solid voxel */ return s.t < ray.t;
 		if (s.tmax.x < s.tmax.y)
 		{
-			if (s.tmax.x < s.tmax.z) { if ((s.X += s.step.x) >= GRIDSIZE) return false; s.tmax.x += s.tdelta.x; }
-			else { if ((s.Z += s.step.z) >= GRIDSIZE) return false; s.tmax.z += s.tdelta.z; }
+			if (s.tmax.x < s.tmax.z) { if ((s.X += s.step.x) >= GRIDSIZE) return false; s.t = s.tmax.x, s.tmax.x += s.tdelta.x; }
+			else { if ((s.Z += s.step.z) >= GRIDSIZE) return false; s.t = s.tmax.z, s.tmax.z += s.tdelta.z; }
 		}
 		else
 		{
-			if (s.tmax.y < s.tmax.z) { if ((s.Y += s.step.y) >= GRIDSIZE) return false; s.tmax.y += s.tdelta.y; }
-			else { if ((s.Z += s.step.z) >= GRIDSIZE) return false; s.tmax.z += s.tdelta.z; }
+			if (s.tmax.y < s.tmax.z) { if ((s.Y += s.step.y) >= GRIDSIZE) return false; s.t = s.tmax.y, s.tmax.y += s.tdelta.y; }
+			else { if ((s.Z += s.step.z) >= GRIDSIZE) return false; s.t = s.tmax.z, s.tmax.z += s.tdelta.z; }
 		}
 	}
 	return false;

@@ -1,5 +1,5 @@
 #pragma once
-#include "src/PointLight.h"
+#include "src/Light.h"
 
 class PointLight;
 
@@ -32,6 +32,10 @@ public:
 	float3 lightDir = normalize(float3(-10, 7, -2));
 
 	vector <PointLight> pLight;
+	vector <SpotLight> sLight;
+
+	int skyWidth, skyHeight;
+	unsigned char* skyData;
 };
 
 } // namespace Tmpl8

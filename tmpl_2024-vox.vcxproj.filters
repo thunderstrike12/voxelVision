@@ -39,7 +39,8 @@
       <Filter>template</Filter>
     </ClCompile>
     <ClCompile Include="template\tmpl8math.cpp" />
-    <ClCompile Include="src\PointLight.cpp" />
+    <ClCompile Include="src\Light.cpp" />
+    <ClCompile Include="src\Material.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="renderer.h" />
@@ -92,7 +93,8 @@
       <Filter>template\imgui</Filter>
     </ClInclude>
     <ClInclude Include="template\tmpl8math.h" />
-    <ClInclude Include="src\PointLight.h" />
+    <ClInclude Include="src\Light.h" />
+    <ClInclude Include="src\Material.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="template">

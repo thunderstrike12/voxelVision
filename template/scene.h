@@ -42,6 +42,7 @@ public:
 	float3 IntersectionPoint() const { return O + t * D; }
 	float3 GetNormal() const;
 	float3 GetAlbedo() const;
+	int GetMaterial() const;
 	float GetReflectivity( const float3& I ) const; // TODO: implement
 	float GetRefractivity( const float3& I ) const; // TODO: implement
 	float3 GetAbsorption( const float3& I ) const; // TODO: implement
@@ -52,6 +53,7 @@ public:
 	float t = 1e34f;			// ray length
 	float3 Dsign = float3( 1 );	// inverted ray direction signs, -1 or 1
 	uint voxel = 0;				// 32-bit ARGB color of a voxelhit object index; 0 = NONE
+	int depth = 0;
 private:
 	// min3 is used in normal reconstruction.
 	__inline static float3 min3( const float3& a, const float3& b )

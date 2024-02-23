@@ -369,6 +369,6 @@ public:
 #include "scene.h"
 #include "camera.h"
 #include "renderer.h"
-#include "src/PointLight.h"
+#include "src/Light.h"
 
 // EOF

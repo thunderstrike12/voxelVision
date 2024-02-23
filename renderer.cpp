@@ -1,4 +1,5 @@
 #include "precomp.h"
+#include <stb_image.h>
 
 // YOU GET:
 // 1. A fast voxel renderer in plain C/C++
@@ -76,9 +77,15 @@ void Renderer::Init()
 		fclose( f );
 	}
 	
-	pLight.push_back(PointLight(float3(.458, .700, .553), float3(0.01, 0, 0)));
+	pLight.push_back(PointLight(float3(.576, .698, .471), float3(0.01, 0, 0)));
 	pLight.push_back(PointLight(float3(.488, .730, .553), float3(0, 0, 0.01)));
 	pLight.push_back(PointLight(float3(.488, .700, .583), float3(0, 0.01, 0)));
+
+	float3 sLightDir = normalize(float3(1, 2, 3));
+	sLight.push_back(SpotLight(sLightDir, float3(.488, .700, .583), float3(1, 1, 1), 20));
+
+	int skyChannels;
+	skyData = stbi_load("assets/sky.hdr", &skyWidth, &skyHeight, &skyChannels, 0);
 }
 
 // -----------------------------------------------------------
@@ -87,15 +94,42 @@ void Renderer::Init()
 float3 Renderer::Trace( Ray& ray )
 {
 	scene.FindNearest( ray );
-	if (ray.voxel == 0) return float3(0); // or a fancy sky color
+	if (ray.voxel == 0) {
+		float3 dir = normalize(ray.D);
+		uint u = skyWidth * atan2f(dir.z, dir.x) * INV2PI - 0.5f;
+		uint v = skyHeight * acosf(dir.y) * INVPI - 0.5f;
+		uint skyIdx = (u + v * skyWidth) % (skyWidth * skyHeight);
+		return 0.005f * float3(skyData[skyIdx * 3], skyData[skyIdx * 3 + 1], skyData[skyIdx * 3 + 2]);
+	}
 	float3 I = ray.O + ray.t * ray.D;
 	static const float3 L = normalize( float3( 1, 4, 0.5f ) );
 	float3 N = ray.GetNormal();
-	float3 albedo = ray.GetAlbedo();
+	float3 albedo = float3(1, 1, 1);
+	int mat = ray.GetMaterial();
 	/* visualize normal */ //return (N + 1) * 0.5f;
 	/* visualize distance */ // return float3( 1 / (1 + ray.t) );
 	/* visualize albedo */  //return albedo;
+	
+	
+	if (mat == 1)
+	{
+		// calculate the specular reflection in the intersection point
+		
+		//secondary.t = 1e34f;
+		float3 dir = normalize(ray.D);
+		float3 direction = normalize(dir - 2 * N * dot(N, dir));
+		float3 origin = I + N * 0.001f;
+		Ray secondary(origin, direction);
+		//secondary.D = ray.D - 2 * N * dot(N, ray.D);
+		//secondary.O = ;
+		//secondary.O = I + secondary.D * 100.0f /*(ray.t - 0.2f)*/;
+		secondary.depth = ray.depth + 1;
 
+		if (secondary.depth >= 20) return float3(0);
+
+		return Trace(secondary);
+	}
+	
 	float3 pLightColor = 0;
 	for (int i = 0; i < pLight.size(); i++)
 	{
@@ -107,33 +141,44 @@ float3 Renderer::Trace( Ray& ray )
 			continue;
 		}
 		if (!scene.IsOccluded(Ray(I, dir, dist))) {
-			//albedo *= 0.25f;
 			pLightColor += (pLight[i].color * (1 / (dist * dist))) * d;
+		}
+	}
+
+	float3 sLightColor = 0;
+	for (int i = 0; i < sLight.size(); i++)
+	{
+		float3 dir = sLight[i].pos - I;
+		float dist = length(dir);
+		dir = normalize(dir);
+
+		float dotP = dot(dir, normalize(sLight[i].dir));
+
+		if (dotP > sLight[i].angle) {
+			float d = dot(N, dir);
+			if (d <= 0) {
+				continue;
+			}
+			if (!scene.IsOccluded(Ray(I, dir, dist))) {
+				sLightColor += ((sLight[i].color * (1 / (dist * dist))) * d) / sLight[i].intensity;
+			}
 		}
 	}
 	
 	float3 dirLightColor = 0;
 	float angle = dot(N, normalize(-lightDir));
-
 	float shadowStrength = 1;
 	// Cast shadow ray
 	Ray shadowRay(I, -lightDir);
-	if (scene.IsOccluded(shadowRay)) {
+	if (angle <= 0) {
 		shadowStrength = 0;
 	}
-	if (angle <= 0) {
+	else if (scene.IsOccluded(shadowRay)) {
 		shadowStrength = 0;
 	}
 	dirLightColor = albedo * angle * shadowStrength;
 
-	return dirLightColor + pLightColor;
-		//shadowStrength = sa;  // Shadow is present
-
-
-	//
-	//float lightStrength = 1 / angle;
-
-	//return albedo * lightStrength * shadowStrength ;
+	return dirLightColor; //+ pLightColor + sLightColor;
 }
 
 // -----------------------------------------------------------
@@ -178,7 +223,11 @@ void Renderer::UI()
 
 	ImGui::SliderFloat3("light direction", &lightDir.x, -1.0f, 1.0f);
 	ImGui::SliderFloat3("plight pos", &pLight[0].pos.x, -1.0f, 1.0f);
-	ImGui::SliderFloat("plight rad", &pLight[0].radius, 0.0f, 10.0f);
+
+	ImGui::SliderFloat3("slight pos", &sLight[0].pos.x, -1.0f, 1.0f);
+	ImGui::SliderFloat3("slight dir", &sLight[0].dir.x, -1.0f, 1.0f);
+	ImGui::SliderFloat("slight angle", &sLight[0].angle, 0.0f, 1.0f);
+	ImGui::SliderFloat("slight intensity", &sLight[0].intensity, -10.0f, 100.0f);
 }
 
 // -----------------------------------------------------------

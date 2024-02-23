@@ -5,12 +5,25 @@
   imgui_impl_opengl3.cpp
   imgui_tables.cpp
   imgui_widgets.cpp
+  renderer.cpp
+  Light.cpp
+  Material.cpp
   opencl.cpp
   opengl.cpp
   scene.cpp
+C:\Users\SKIKK\Documents\BUas\perforce\Year1\BlockC\voxelVision\template\scene.cpp(26,23): warning C4244: 'argument': conversion from 'uint' to 'const float', possible loss of data
+  (compiling source file '/template/scene.cpp')
+  
+C:\Users\SKIKK\Documents\BUas\perforce\Year1\BlockC\voxelVision\template\scene.cpp(26,20): warning C4244: 'argument': conversion from 'uint' to 'const float', possible loss of data
+  (compiling source file '/template/scene.cpp')
+  
+C:\Users\SKIKK\Documents\BUas\perforce\Year1\BlockC\voxelVision\template\scene.cpp(26,17): warning C4244: 'argument': conversion from 'uint' to 'const float', possible loss of data
+  (compiling source file '/template/scene.cpp')
+  
+C:\Users\SKIKK\Documents\BUas\perforce\Year1\BlockC\voxelVision\template\scene.cpp(31,9): warning C4244: 'return': conversion from 'const uint' to 'float', possible loss of data
+  (compiling source file '/template/scene.cpp')
+  
   surface.cpp
   tmpl8math.cpp
-  renderer.cpp
   Generating Code...
-     Creating library C:\Users\SKIKK\Documents\BUas\perforce\Year1\BlockC\voxelVision\x64\voxpopuli_debug.lib and object C:\Users\SKIKK\Documents\BUas\perforce\Year1\BlockC\voxelVision\x64\voxpopuli_debug.exp
   tmpl_2024-vox.vcxproj -> C:\Users\SKIKK\Documents\BUas\perforce\Year1\BlockC\voxelVision\x64\voxpopuli_debug.exe
