@@ -1,29 +1,23 @@
-﻿  template.cpp
-  imgui.cpp
-  imgui_draw.cpp
-  imgui_impl_glfw.cpp
-  imgui_impl_opengl3.cpp
-  imgui_tables.cpp
-  imgui_widgets.cpp
-  renderer.cpp
-  Light.cpp
-  Material.cpp
-  opencl.cpp
-  opengl.cpp
-  scene.cpp
-C:\Users\SKIKK\Documents\BUas\perforce\Year1\BlockC\voxelVision\template\scene.cpp(26,23): warning C4244: 'argument': conversion from 'uint' to 'const float', possible loss of data
-  (compiling source file '/template/scene.cpp')
+﻿  renderer.cpp
+C:\Users\SKIKK\Documents\BUas\perforce\Year1\BlockC\voxelVision\renderer.cpp(102,10): warning C4244: 'initializing': conversion from 'float' to 'uint', possible loss of data
+  (compiling source file '/renderer.cpp')
   
-C:\Users\SKIKK\Documents\BUas\perforce\Year1\BlockC\voxelVision\template\scene.cpp(26,20): warning C4244: 'argument': conversion from 'uint' to 'const float', possible loss of data
-  (compiling source file '/template/scene.cpp')
+C:\Users\SKIKK\Documents\BUas\perforce\Year1\BlockC\voxelVision\renderer.cpp(103,10): warning C4244: 'initializing': conversion from 'float' to 'uint', possible loss of data
+  (compiling source file '/renderer.cpp')
   
-C:\Users\SKIKK\Documents\BUas\perforce\Year1\BlockC\voxelVision\template\scene.cpp(26,17): warning C4244: 'argument': conversion from 'uint' to 'const float', possible loss of data
-  (compiling source file '/template/scene.cpp')
+C:\Users\SKIKK\Documents\BUas\perforce\Year1\BlockC\voxelVision\renderer.cpp(215,59): warning C4244: 'argument': conversion from 'int' to 'const float', possible loss of data
+  (compiling source file '/renderer.cpp')
   
-C:\Users\SKIKK\Documents\BUas\perforce\Year1\BlockC\voxelVision\template\scene.cpp(31,9): warning C4244: 'return': conversion from 'const uint' to 'float', possible loss of data
-  (compiling source file '/template/scene.cpp')
+C:\Users\SKIKK\Documents\BUas\perforce\Year1\BlockC\voxelVision\renderer.cpp(215,47): warning C4244: 'argument': conversion from 'int' to 'const float', possible loss of data
+  (compiling source file '/renderer.cpp')
   
-  surface.cpp
-  tmpl8math.cpp
-  Generating Code...
+C:\Users\SKIKK\Documents\BUas\perforce\Year1\BlockC\voxelVision\renderer.cpp(235,21): warning C4244: 'argument': conversion from 'float' to 'const uint', possible loss of data
+  (compiling source file '/renderer.cpp')
+  
+C:\Users\SKIKK\Documents\BUas\perforce\Year1\BlockC\voxelVision\renderer.cpp(235,17): warning C4244: 'argument': conversion from 'float' to 'const uint', possible loss of data
+  (compiling source file '/renderer.cpp')
+  
+C:\Users\SKIKK\Documents\BUas\perforce\Year1\BlockC\voxelVision\renderer.cpp(235,13): warning C4244: 'argument': conversion from 'float' to 'const uint', possible loss of data
+  (compiling source file '/renderer.cpp')
+  
   tmpl_2024-vox.vcxproj -> C:\Users\SKIKK\Documents\BUas\perforce\Year1\BlockC\voxelVision\x64\voxpopuli_debug.exe

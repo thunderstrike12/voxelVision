@@ -370,5 +370,6 @@ public:
 #include "camera.h"
 #include "renderer.h"
 #include "src/Light.h"
+#include "src/Material.h"
 
 // EOF

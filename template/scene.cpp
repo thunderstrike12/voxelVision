@@ -70,11 +70,15 @@ bool Cube::Contains( const float3& pos ) const
 
 Scene::Scene()
 {
+	Materials mats;
+
 	// the voxel world sits in a 1x1x1 cube
 	cube = Cube( float3( 0, 0, 0 ), float3( 1, 1, 1 ) );
 	// initialize the scene using Perlin noise, parallel over z
 	grid = (uint*)MALLOC64( GRIDSIZE3 * sizeof( uint ) );
 	memset( grid, 0, GRIDSIZE3 * sizeof( uint ) );
+
+#pragma omp parallel for schedule(dynamic)
 	for (int z = 0; z < WORLDSIZE; z++)
 	{
 		const float fz = (float)z / WORLDSIZE;
@@ -85,11 +89,11 @@ Scene::Scene()
 			for (int x = 0; x < WORLDSIZE; x++, fx += 1.0f / WORLDSIZE)
 			{
 				const float n = noise3D(fx, fy, fz);
-				if (rand() % 5) {
-					Set(x, y, z, n > 0.09f ? 1 : 0);
+				if (1) {
+					Set(x, y, z, n > 0.09f ? Materials::NONE : 0);
 				}
 				else {
-					Set(x, y, z, n > 0.09f ? 2 : 0);
+					Set(x, y, z, n > 0.09f ? Materials::METAL : 0);
 				}
 			}
 		}
@@ -99,6 +103,11 @@ Scene::Scene()
 void Scene::Set( const uint x, const uint y, const uint z, const uint v )
 {
 	grid[x + y * GRIDSIZE + z * GRIDSIZE2] = v;
+}
+
+void Scene::Delete(const uint x, const uint y, const uint z)
+{
+	grid[x + y * GRIDSIZE + z * GRIDSIZE2] = 0;
 }
 
 bool Scene::Setup3DDDA( const Ray& ray, DDAState& state ) const

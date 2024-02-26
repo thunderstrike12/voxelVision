@@ -81,6 +81,9 @@ void Renderer::Init()
 	pLight.push_back(PointLight(float3(.488, .730, .553), float3(0, 0, 0.01)));
 	pLight.push_back(PointLight(float3(.488, .700, .583), float3(0, 0.01, 0)));
 
+	materials.push_back(new None());
+	materials.push_back(new Metal());
+
 	float3 sLightDir = normalize(float3(1, 2, 3));
 	sLight.push_back(SpotLight(sLightDir, float3(.488, .700, .583), float3(1, 1, 1), 20));
 
@@ -105,29 +108,28 @@ float3 Renderer::Trace( Ray& ray )
 	static const float3 L = normalize( float3( 1, 4, 0.5f ) );
 	float3 N = ray.GetNormal();
 	float3 albedo = float3(1, 1, 1);
-	int mat = ray.GetMaterial();
+	Material* mat = materials[ray.GetMaterial() - 1];
+	
 	/* visualize normal */ //return (N + 1) * 0.5f;
 	/* visualize distance */ // return float3( 1 / (1 + ray.t) );
 	/* visualize albedo */  //return albedo;
-	
-	
-	if (mat == 1)
+	if(mat == materials[Scene::METAL - 1])
+		mat->reflectivity = reflectivity;
+
+	float3 reflResult;
+	if (mat->reflectivity > 0)
 	{
 		// calculate the specular reflection in the intersection point
-		
-		//secondary.t = 1e34f;
 		float3 dir = normalize(ray.D);
 		float3 direction = normalize(dir - 2 * N * dot(N, dir));
 		float3 origin = I + N * 0.001f;
 		Ray secondary(origin, direction);
-		//secondary.D = ray.D - 2 * N * dot(N, ray.D);
-		//secondary.O = ;
-		//secondary.O = I + secondary.D * 100.0f /*(ray.t - 0.2f)*/;
+
 		secondary.depth = ray.depth + 1;
 
 		if (secondary.depth >= 20) return float3(0);
 
-		return Trace(secondary);
+		reflResult = Trace(secondary);
 	}
 	
 	float3 pLightColor = 0;
@@ -177,14 +179,14 @@ float3 Renderer::Trace( Ray& ray )
 		shadowStrength = 0;
 	}
 	dirLightColor = albedo * angle * shadowStrength;
-
-	return dirLightColor; //+ pLightColor + sLightColor;
+	float3 finalColor = dirLightColor + pLightColor + sLightColor;
+	return (reflResult * mat->reflectivity) + (finalColor * (1 - mat->reflectivity));
 }
 
 // -----------------------------------------------------------
 // Main application tick function - Executed once per frame
 // -----------------------------------------------------------
-void Renderer::Tick( float deltaTime )
+void Renderer::Tick(float deltaTime)
 {
 	// pixel loop
 	Timer t;
@@ -195,9 +197,9 @@ void Renderer::Tick( float deltaTime )
 		// trace a primary ray for each pixel on the line
 		for (int x = 0; x < SCRWIDTH; x++)
 		{
-			float4 pixel = float4( Trace( camera.GetPrimaryRay( (float)x, (float)y ) ), 0 );
+			float4 pixel = float4(Trace(camera.GetPrimaryRay((float)x, (float)y)), 0);
 			// translate accumulator contents to rgb32 pixels
-			screen->pixels[x + y * SCRWIDTH] = RGBF32_to_RGB8( &pixel );
+			screen->pixels[x + y * SCRWIDTH] = RGBF32_to_RGB8(&pixel);
 			accumulator[x + y * SCRWIDTH] = pixel;
 		}
 	}
@@ -206,8 +208,51 @@ void Renderer::Tick( float deltaTime )
 	avg = (1 - alpha) * avg + alpha * t.elapsed() * 1000;
 	if (alpha > 0.05f) alpha *= 0.5f;
 	float fps = 1000.0f / avg, rps = (SCRWIDTH * SCRHEIGHT) / avg;
-	printf( "%5.2fms (%.1ffps) - %.1fMrays/s\n", avg, fps, rps / 1000 );
+	printf("%5.2fms (%.1ffps) - %.1fMrays/s\n", avg, fps, rps / 1000);
 	// handle user input
+
+	//building
+	scene.Delete(hover.x, hover.y, hover.z);
+	
+	Ray mouseRay = camera.GetPrimaryRay(mousePos.x, mousePos.y);
+	scene.FindNearest(mouseRay);
+	if (building) {
+		buildDelete = 1.0f;
+	}
+	else {
+		buildDelete = -1.0f;
+	}
+	float3 I = mouseRay.O + mouseRay.D * mouseRay.t + mouseRay.GetNormal() * 0.0001f * buildDelete;
+
+	float Ix = std::floor(I.x * WORLDSIZE);
+	float Iy = std::floor(I.y * WORLDSIZE);
+	float Iz = std::floor(I.z * WORLDSIZE);
+
+	uint Ixui = Ix;
+	uint Iyui = Iy;
+	uint Izui = Iz;
+
+	
+	if (building) {
+		scene.Set(Ixui, Iyui, Izui, buildMat);
+		hover = float3(Ixui, Iyui, Izui);
+	}
+
+	if (mouse && !buildCd) {
+		if (Ixui > 0 && Ixui < WORLDSIZE && Iyui > 0 && Iyui < WORLDSIZE && Izui > 0 && Izui < WORLDSIZE) {
+			if (building) {
+				scene.Set(Ixui, Iyui, Izui, buildMat);
+			}
+			else {
+				scene.Delete (Ixui, Iyui, Izui);
+			}
+			hover = 0;
+			buildCd = true;
+		}
+	}
+	if (!mouse) {
+		buildCd = false;
+	}
 	camera.HandleInput( deltaTime );
 }
 
@@ -221,13 +266,23 @@ void Renderer::UI()
 	scene.FindNearest( r );
 	ImGui::Text( "voxel: %i", r.voxel );
 
-	ImGui::SliderFloat3("light direction", &lightDir.x, -1.0f, 1.0f);
-	ImGui::SliderFloat3("plight pos", &pLight[0].pos.x, -1.0f, 1.0f);
+	if (ImGui::CollapsingHeader("lighting")) {
+		ImGui::SliderFloat3("light direction", &lightDir.x, -1.0f, 1.0f);
+		ImGui::SliderFloat3("plight pos", &pLight[0].pos.x, -1.0f, 1.0f);
 
-	ImGui::SliderFloat3("slight pos", &sLight[0].pos.x, -1.0f, 1.0f);
-	ImGui::SliderFloat3("slight dir", &sLight[0].dir.x, -1.0f, 1.0f);
-	ImGui::SliderFloat("slight angle", &sLight[0].angle, 0.0f, 1.0f);
-	ImGui::SliderFloat("slight intensity", &sLight[0].intensity, -10.0f, 100.0f);
+		ImGui::SliderFloat3("slight pos", &sLight[0].pos.x, -1.0f, 1.0f);
+		ImGui::SliderFloat3("slight dir", &sLight[0].dir.x, -1.0f, 1.0f);
+		ImGui::SliderFloat("slight angle", &sLight[0].angle, 0.0f, 1.0f);
+		ImGui::SliderFloat("slight intensity", &sLight[0].intensity, -10.0f, 100.0f);
+
+		ImGui::SliderFloat("reflectivity", &reflectivity, 0.0f, 1.0f);
+	}
+	
+
+	if (ImGui::CollapsingHeader("building")) {
+		ImGui::Checkbox("building/deleteing", &building);
+		ImGui::SliderInt("material", &buildMat, 0, 2);
+	}
 }
 
 // -----------------------------------------------------------

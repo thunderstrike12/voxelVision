@@ -85,10 +85,18 @@ public:
 		float3 tmax;
 		float dummy2 = 0;		// 16 bytes, 64 bytes in total
 	};
+
+	enum Materials {
+		EMPTYSPACE,
+		NONE,
+		METAL
+	};
+
 	Scene();
 	void FindNearest( Ray& ray ) const;
 	bool IsOccluded( const Ray& ray ) const;
 	void Set( const uint x, const uint y, const uint z, const uint v );
+	void Delete(const uint x, const uint y, const uint z);
 	unsigned int* grid;
 	Cube cube;
 private:

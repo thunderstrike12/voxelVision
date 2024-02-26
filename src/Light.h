@@ -16,8 +16,8 @@ public:
 class SpotLight : public Light {
 public:
 	float angle;
-	float intensity;
+	float intensity = 0;
 	float3 dir;
 
-	SpotLight(float3 dir_, float3 pos_, float3 color_, float radius_);
+	SpotLight(float3 dir_, float3 pos_, float3 color_, float angle_);
 };
