@@ -77,51 +77,72 @@ void Renderer::Init()
 		fclose( f );
 	}
 	
-	pLight.push_back(PointLight(float3(.576, .698, .471), float3(0.01, 0, 0)));
-	pLight.push_back(PointLight(float3(.488, .730, .553), float3(0, 0, 0.01)));
-	pLight.push_back(PointLight(float3(.488, .700, .583), float3(0, 0.01, 0)));
+	//pLight.push_back(PointLight(float3(.576, .698, .471), float3(0.01, 0, 0)));
+	//pLight.push_back(PointLight(float3(.488, .730, .553), float3(0, 0, 0.01)));
+	//pLight.push_back(PointLight(float3(.488, .700, .583), float3(0, 0.01, 0)));
+
+	//float3 sLightDir = normalize(float3(1, 2, 3));
+	//sLight.push_back(SpotLight(sLightDir, float3(.488, .700, .583), float3(1, 1, 1), 20));
+
+	aLight.push_back(AreaLight(float3(.488, .730, .553), float3(0.01, 0.01, 0.01), 1));
 
 	materials.push_back(new None());
 	materials.push_back(new Metal());
+	materials.push_back(new Glass());
+	materials.push_back(new Diamond());
 
-	float3 sLightDir = normalize(float3(1, 2, 3));
-	sLight.push_back(SpotLight(sLightDir, float3(.488, .700, .583), float3(1, 1, 1), 20));
+	build = new Builder();
 
 	int skyChannels;
-	skyData = stbi_load("assets/sky.hdr", &skyWidth, &skyHeight, &skyChannels, 0);
+	skyData = stbi_loadf("assets/sky.hdr", &skyWidth, &skyHeight, &skyChannels, 0);
+	for (int i = 0; i < skyWidth * skyHeight * 3; i++)
+		skyData[i] = sqrtf(skyData[i]); // Gamma Adjustment for Reduced HDR Range
 }
 
 // -----------------------------------------------------------
 // Evaluate light transport
 // -----------------------------------------------------------
-float3 Renderer::Trace( Ray& ray )
+float3 Renderer::Trace( Ray& ray, bool dielectric )
 {
-	scene.FindNearest( ray );
+	ray.t = 0;
+	if (dielectric) {
+		scene.FindNearestExitDie(ray, GRIDLAYERS);
+	}
+	else {
+		scene.FindNearest(ray, GRIDLAYERS);
+	}
 	if (ray.voxel == 0) {
 		float3 dir = normalize(ray.D);
 		uint u = skyWidth * atan2f(dir.z, dir.x) * INV2PI - 0.5f;
 		uint v = skyHeight * acosf(dir.y) * INVPI - 0.5f;
 		uint skyIdx = (u + v * skyWidth) % (skyWidth * skyHeight);
-		return 0.005f * float3(skyData[skyIdx * 3], skyData[skyIdx * 3 + 1], skyData[skyIdx * 3 + 2]);
+		return 0.5f * float3(skyData[skyIdx * 3], skyData[skyIdx * 3 + 1], skyData[skyIdx * 3 + 2]);
 	}
+
 	float3 I = ray.O + ray.t * ray.D;
-	static const float3 L = normalize( float3( 1, 4, 0.5f ) );
+	//static const float3 L = normalize( float3( 1, 4, 0.5f ) );
 	float3 N = ray.GetNormal();
 	float3 albedo = float3(1, 1, 1);
-	Material* mat = materials[ray.GetMaterial() - 1];
-	
-	/* visualize normal */ //return (N + 1) * 0.5f;
-	/* visualize distance */ // return float3( 1 / (1 + ray.t) );
-	/* visualize albedo */  //return albedo;
-	if(mat == materials[Scene::METAL - 1])
-		mat->reflectivity = reflectivity;
+
+	ray.entering = ray.GetMaterial();
+	Material* matExit = materials[ray.exiting ];
+	Material* matEnter = materials[ray.GetMaterial() - 1];
+
+
+	if(matEnter == materials[Scene::METAL - 1])
+		matEnter->reflectivity = reflectivity;
+	if (matEnter == materials[Scene::METAL - 1])
+		matEnter->glossyness = glossyness;
+	if (matEnter == materials[Scene::GLASS - 1])
+		matEnter->refraction = refraction;
 
 	float3 reflResult;
-	if (mat->reflectivity > 0)
+	if (matEnter->reflectivity > 0 || matEnter->refraction > 1.0f)
 	{
+		float3 rf3 = normalize(float3(rand(), rand(), rand())) * matEnter->glossyness;
 		// calculate the specular reflection in the intersection point
-		float3 dir = normalize(ray.D);
-		float3 direction = normalize(dir - 2 * N * dot(N, dir));
+		float3 dir = normalize(ray.D + rf3);
+		float3 direction = dir - 2 * N * dot(N, dir);
 		float3 origin = I + N * 0.001f;
 		Ray secondary(origin, direction);
 
@@ -130,6 +151,57 @@ float3 Renderer::Trace( Ray& ray )
 		if (secondary.depth >= 20) return float3(0);
 
 		reflResult = Trace(secondary);
+	}
+
+	float3 refrResult = 0;
+	if (matEnter->refraction > 1.0f || dielectric) {
+		float eta = 0;
+		eta = matExit->refraction / matEnter->refraction;
+
+		float theta1 = dot(N, -ray.D);
+		float cosTheta1 = cos(theta1);
+		float k = 1 - (eta * eta) * (1 - cosTheta1 * cosTheta1);
+
+		if (k >= 0) {
+			float3 T = eta * ray.D + N * (eta * cosTheta1 - sqrt(k));
+			Ray secondary(I, T);
+			secondary.depth = ray.depth + 1;
+			if (secondary.depth > 20) return float3(0);
+
+			secondary.exiting = ray.entering - 1;
+			if (ray.entering == Scene::GLASS || ray.entering == Scene::DIAMOND) {
+				refrResult = Trace(secondary, true);
+			}
+			else {
+				refrResult = Trace(secondary);
+			}
+		}
+		else {
+			//TIR
+		}
+	}
+
+	float reflectance;
+	if (matEnter->refraction > 1.0f) {
+		float angle = dot(N, ray.D);
+
+		float cosAi = cos(angle);
+		float sinAi = sin(angle);
+
+		float n1 = matExit->refraction;
+		float n2 = matEnter->refraction;
+		float eta = n1 / n2;
+
+		float cosAt = sqrt(1 - eta * sinAi * eta * sinAi);
+
+		float term1 = (n1 * cosAi - n2 * cosAt) / (n1 * cosAi + n2 * cosAt);
+		float term2 = (n1 * cosAt - n2 * cosAi) / (n1 * cosAt + n2 * cosAi);
+
+		float reflectance = 0.5 * (term1 * term1 + term2 * term2);
+
+		reflectance = std::clamp(reflectance, 0.0f, 1.0f);
+
+		refrResult = (1.0 - reflectance) * refrResult + reflectance * reflResult;
 	}
 	
 	float3 pLightColor = 0;
@@ -142,7 +214,7 @@ float3 Renderer::Trace( Ray& ray )
 		if (d <= 0) {
 			continue;
 		}
-		if (!scene.IsOccluded(Ray(I, dir, dist))) {
+		if (!scene.IsOccluded(Ray(I, dir, dist), GRIDLAYERS)) {
 			pLightColor += (pLight[i].color * (1 / (dist * dist))) * d;
 		}
 	}
@@ -161,26 +233,62 @@ float3 Renderer::Trace( Ray& ray )
 			if (d <= 0) {
 				continue;
 			}
-			if (!scene.IsOccluded(Ray(I, dir, dist))) {
+			if (!scene.IsOccluded(Ray(I, dir, dist), GRIDLAYERS)) {
 				sLightColor += ((sLight[i].color * (1 / (dist * dist))) * d) / sLight[i].intensity;
 			}
+		}
+	}
+
+	float3 aLightColor = 0;
+	for (int i = 0; i < aLight.size(); i++)
+	{
+		float3 rf3 = normalize(float3(rand(), rand(), rand())) * aLight[i].radius;
+
+		float3 dir = aLight[i].pos + rf3 - I;
+		float dist = length(dir);
+		dir = normalize(dir);
+
+		float d = dot(N, dir);
+		if (d <= 0) {
+			continue;
+		}
+		//Ray(aLight[i].pos + rf3, -dir, dist)
+		if (!scene.IsOccluded(Ray(aLight[i].pos + rf3, dir, dist), GRIDLAYERS)) {
+			aLightColor += ((aLight[i].color * (1 / (dist * dist))) * d);
 		}
 	}
 	
 	float3 dirLightColor = 0;
 	float angle = dot(N, normalize(-lightDir));
 	float shadowStrength = 1;
-	// Cast shadow ray
-	Ray shadowRay(I, -lightDir);
+	
 	if (angle <= 0) {
 		shadowStrength = 0;
 	}
-	else if (scene.IsOccluded(shadowRay)) {
+	// Cast shadow ray
+	else if (scene.IsOccluded(Ray(I * -lightDir * 10000.0f, lightDir), GRIDLAYERS)) {
 		shadowStrength = 0;
 	}
+
+	
 	dirLightColor = albedo * angle * shadowStrength;
-	float3 finalColor = dirLightColor + pLightColor + sLightColor;
-	return (reflResult * mat->reflectivity) + (finalColor * (1 - mat->reflectivity));
+	float3 finalColor = dirLightColor + pLightColor + sLightColor + aLightColor;
+
+	if (matEnter->refraction > 1.0f) {
+		finalColor = (refrResult * (0.5)) + (finalColor * (1 - (0.5)));
+	}
+	else {
+		finalColor = (reflResult * matEnter->reflectivity) + (finalColor * (1 - matEnter->reflectivity));
+	}
+	return finalColor;
+}
+
+void Renderer::resetAcc() {
+	for (int y = 0; y < SCRHEIGHT; y++) {
+		for (int x = 0; x < SCRWIDTH; x++) {
+			accumulator[x + y * SCRWIDTH] = float4(0.0f, 0.0f, 0.0f, 0.0f);
+		}
+	}
 }
 
 // -----------------------------------------------------------
@@ -190,6 +298,8 @@ void Renderer::Tick(float deltaTime)
 {
 	// pixel loop
 	Timer t;
+
+	float framesInv = 1.0f / frames;
 	// lines are executed as OpenMP parallel tasks (disabled in DEBUG)
 #pragma omp parallel for schedule(dynamic)
 	for (int y = 0; y < SCRHEIGHT; y++)
@@ -197,63 +307,39 @@ void Renderer::Tick(float deltaTime)
 		// trace a primary ray for each pixel on the line
 		for (int x = 0; x < SCRWIDTH; x++)
 		{
-			float4 pixel = float4(Trace(camera.GetPrimaryRay((float)x, (float)y)), 0);
-			// translate accumulator contents to rgb32 pixels
-			screen->pixels[x + y * SCRWIDTH] = RGBF32_to_RGB8(&pixel);
-			accumulator[x + y * SCRWIDTH] = pixel;
-		}
-	}
-	// performance report - running average - ms, MRays/s
-	static float avg = 10, alpha = 1;
-	avg = (1 - alpha) * avg + alpha * t.elapsed() * 1000;
-	if (alpha > 0.05f) alpha *= 0.5f;
-	float fps = 1000.0f / avg, rps = (SCRWIDTH * SCRHEIGHT) / avg;
-	printf("%5.2fms (%.1ffps) - %.1fMrays/s\n", avg, fps, rps / 1000);
-	// handle user input
+			if (accumulatorEnabled) {
+				float4 pixel = float4(Trace(camera.GetPrimaryRay((float)x + RandomFloat(), (float)y + RandomFloat())), 0);
+				// translate accumulator contents to rgb32 pixels
+				accumulator[x + y * SCRWIDTH] += pixel;
+				float4 accPix = accumulator[x + y * SCRWIDTH] * framesInv;
 
-	//building
-	scene.Delete(hover.x, hover.y, hover.z);
-	
-	Ray mouseRay = camera.GetPrimaryRay(mousePos.x, mousePos.y);
-	scene.FindNearest(mouseRay);
-	if (building) {
-		buildDelete = 1.0f;
-	}
-	else {
-		buildDelete = -1.0f;
-	}
-	float3 I = mouseRay.O + mouseRay.D * mouseRay.t + mouseRay.GetNormal() * 0.0001f * buildDelete;
-
-	float Ix = std::floor(I.x * WORLDSIZE);
-	float Iy = std::floor(I.y * WORLDSIZE);
-	float Iz = std::floor(I.z * WORLDSIZE);
-
-	uint Ixui = Ix;
-	uint Iyui = Iy;
-	uint Izui = Iz;
-
-	
-	if (building) {
-		scene.Set(Ixui, Iyui, Izui, buildMat);
-		hover = float3(Ixui, Iyui, Izui);
-	}
-
-	if (mouse && !buildCd) {
-		if (Ixui > 0 && Ixui < WORLDSIZE && Iyui > 0 && Iyui < WORLDSIZE && Izui > 0 && Izui < WORLDSIZE) {
-			if (building) {
-				scene.Set(Ixui, Iyui, Izui, buildMat);
+				screen->pixels[x + y * SCRWIDTH] = RGBF32_to_RGB8(&accPix); //implement bit shift
 			}
 			else {
-				scene.Delete (Ixui, Iyui, Izui);
+				float4 pixel = float4(Trace(camera.GetPrimaryRay((float)x, (float)y)), 0);
+				screen->pixels[x + y * SCRWIDTH] = RGBF32_to_RGB8(&pixel);
 			}
-			hover = 0;
-			buildCd = true;
 		}
 	}
-	if (!mouse) {
-		buildCd = false;
+	
+	// handle user input
+
+	// performance report - running average - ms, MRays/s
+
+
+	//building
+	build->update(scene, camera, mousePos, mouse);
+
+	frames++;
+	if (camera.HandleInput(deltaTime)) {
+		resetAcc();
+		frames = 1;
 	}
-	camera.HandleInput( deltaTime );
+	
+	static float alpha = 1, avg = 10;
+	avg = (1 - alpha) * avg + alpha * t.elapsed() * 1000;
+	if (alpha > 0.05f) alpha *= 0.5f;
+	fps = 1000.0f / avg, rps = (SCRWIDTH * SCRHEIGHT) / avg;
 }
 
 // -----------------------------------------------------------
@@ -261,27 +347,59 @@ void Renderer::Tick(float deltaTime)
 // -----------------------------------------------------------
 void Renderer::UI()
 {
+	//ImGui::Text( "voxel: %i", r.voxel );
+	ImGui::Text("FPS: %f", fps);
+	ImGui::Text("RPS: %f", rps);
+
 	// ray query on mouse
 	Ray r = camera.GetPrimaryRay( (float)mousePos.x, (float)mousePos.y );
-	scene.FindNearest( r );
-	ImGui::Text( "voxel: %i", r.voxel );
+	scene.FindNearest( r, GRIDLAYERS );
+
 
 	if (ImGui::CollapsingHeader("lighting")) {
 		ImGui::SliderFloat3("light direction", &lightDir.x, -1.0f, 1.0f);
-		ImGui::SliderFloat3("plight pos", &pLight[0].pos.x, -1.0f, 1.0f);
 
-		ImGui::SliderFloat3("slight pos", &sLight[0].pos.x, -1.0f, 1.0f);
-		ImGui::SliderFloat3("slight dir", &sLight[0].dir.x, -1.0f, 1.0f);
-		ImGui::SliderFloat("slight angle", &sLight[0].angle, 0.0f, 1.0f);
-		ImGui::SliderFloat("slight intensity", &sLight[0].intensity, -10.0f, 100.0f);
+		ImGui::Text("point lights");
+		for (int i = 0; i < pLight.size(); i++)	{
+			std::string label = "plight pos " + std::to_string(i);
+			ImGui::SliderFloat3(label.c_str(), &pLight[i].pos.x, -1.0f, 1.0f);
+		}
 
-		ImGui::SliderFloat("reflectivity", &reflectivity, 0.0f, 1.0f);
+		ImGui::Text("spot lights");
+		for (int i = 0; i < sLight.size(); i++) {
+			std::string label = "slight pos " + std::to_string(i);
+			ImGui::SliderFloat3(label.c_str(), &sLight[i].pos.x, -1.0f, 1.0f);
+
+			label = "slight dir " + std::to_string(i);
+			ImGui::SliderFloat3(label.c_str(), &sLight[i].dir.x, -1.0f, 1.0f);
+
+			label = "slight angle " + std::to_string(i);
+			ImGui::SliderFloat(label.c_str(), &sLight[i].angle, 0.0f, 1.0f);
+
+			label = "slight intensity " + std::to_string(i);
+			ImGui::SliderFloat(label.c_str(), &sLight[i].intensity, -10.0f, 100.0f);
+		}
+
+		ImGui::Text("area lights");
+		for (int i = 0; i < aLight.size(); i++) {
+			std::string label = "alight pos " + std::to_string(i);
+			ImGui::SliderFloat3(label.c_str(), &aLight[i].pos.x, -1.0f, 1.0f);
+
+			label = "alight radius " + std::to_string(i);
+			ImGui::SliderFloat(label.c_str(), &aLight[i].radius, 0.0f, 1.0f);
+		}
 	}
 	
+	if (ImGui::CollapsingHeader("materials")) {
+		ImGui::SliderFloat("reflectivity", &reflectivity, 0.0f, 1.0f);
+		ImGui::SliderFloat("glossyness", &glossyness, 0.0f, 1.0f);
+		ImGui::SliderFloat("refraction", &refraction, 1.0f, 5.0f);
+	}
 
 	if (ImGui::CollapsingHeader("building")) {
-		ImGui::Checkbox("building/deleteing", &building);
-		ImGui::SliderInt("material", &buildMat, 0, 2);
+		ImGui::Checkbox("accumulator enabled", &accumulatorEnabled);
+		ImGui::Checkbox("building/deleteing", &build->building);
+		ImGui::SliderInt("material", &build->mat, 1, 4);
 	}
 }
 

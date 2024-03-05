@@ -41,6 +41,7 @@
     <ClCompile Include="template\tmpl8math.cpp" />
     <ClCompile Include="src\Light.cpp" />
     <ClCompile Include="src\Material.cpp" />
+    <ClCompile Include="src\Builder.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="renderer.h" />
@@ -95,6 +96,7 @@
     <ClInclude Include="template\tmpl8math.h" />
     <ClInclude Include="src\Light.h" />
     <ClInclude Include="src\Material.h" />
+    <ClInclude Include="src\Builder.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="template">

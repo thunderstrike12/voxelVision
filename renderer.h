@@ -3,6 +3,7 @@
 
 class PointLight;
 class Material;
+class Builder;
 
 namespace Tmpl8
 {
@@ -12,7 +13,8 @@ class Renderer : public TheApp
 public:
 	// game flow methods
 	void Init();
-	float3 Trace( Ray& ray );
+	float3 Trace( Ray& ray, bool dielectric = false );
+	void resetAcc();
 	void Tick( float deltaTime );
 	void UI();
 	void Shutdown();
@@ -29,24 +31,32 @@ public:
 	float4* accumulator;
 	Scene scene;
 	Camera camera;
+
+
+	float fps = 0;
+	float rps = 0;
+	int frames = 1;
+
+	bool accumulatorEnabled = false;
+	Builder* build;
 	int mouse;
 
-	float3 hover;
-	bool buildCd = false;
-	bool building = true;
-	float buildDelete = 1.0f;
-	int buildMat = 0;
-	
+	float3 lightDir = normalize(float3(-10, -50, -20));
 
-	float3 lightDir = normalize(float3(-10, 7, -2));
 	vector<Material*> materials;
 	float reflectivity;
+	float glossyness;
+	float refraction;
 
 	vector <PointLight> pLight;
 	vector <SpotLight> sLight;
+	vector <AreaLight> aLight;
 
 	int skyWidth, skyHeight;
-	unsigned char* skyData;
+	float* skyData;
+
+	float nAir = 1;
+	bool reflect = false;
 };
 
 } // namespace Tmpl8

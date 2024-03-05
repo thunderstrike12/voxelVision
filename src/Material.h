@@ -2,9 +2,10 @@
 class Material
 {
 public:
-	float reflectivity;
-	float absorption;
-	float refraction;
+	float reflectivity = 0;
+	float absorption = 0;
+	float refraction = 1.0f;
+	float glossyness = 0;
 
 	float3 color;
 
@@ -20,5 +21,17 @@ public:
 class Metal : public Material {
 public:
 	Metal();
+	Ray reflectRay(Ray ray) override;
+};
+
+class Glass : public Material {
+public:
+	Glass();
+	Ray reflectRay(Ray ray) override;
+};
+
+class Diamond : public Material {
+public:
+	Diamond();
 	Ray reflectRay(Ray ray) override;
 };

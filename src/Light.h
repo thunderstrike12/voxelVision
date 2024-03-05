@@ -21,3 +21,10 @@ public:
 
 	SpotLight(float3 dir_, float3 pos_, float3 color_, float angle_);
 };
+
+class AreaLight : public Light {
+public:
+	float radius = 0;
+
+	AreaLight(float3 pos_, float3 color_, float radius_);
+};

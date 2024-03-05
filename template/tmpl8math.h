@@ -1023,3 +1023,23 @@ float3 TransformVector_SSE( const __m128& a, const mat4& M );
 // Perlin noise
 float noise2D( const float x, const float y );
 float noise3D( const float x, const float y, const float z );
+
+// Credit Max Coppen for morton ordering
+/* If x64 processor & BMI2 is available /
+
+/* 3D Morton BMI masks */
+constexpr uint64_t BMI_3D_X_MASK = 0x9249249249249249;
+constexpr uint64_t BMI_3D_Y_MASK = 0x2492492492492492;
+constexpr uint64_t BMI_3D_Z_MASK = 0x4924924924924924;
+
+/* 3D coordinate to morton code. */
+inline uint64_t morton_encode(const uint32_t x, const uint32_t y, const uint32_t z) {
+	return _pdep_u64(x, BMI_3D_X_MASK) | _pdep_u64(y, BMI_3D_Y_MASK) | _pdep_u64(z, BMI_3D_Z_MASK);
+}
+
+/* Morton code to 3D coordinate. */
+inline void morton_decode(const uint64_t m, uint32_t& x, uint32_t& y, uint32_t& z) {
+	x = (uint32_t)(_pext_u64(m, BMI_3D_X_MASK));
+	y = (uint32_t)(_pext_u64(m, BMI_3D_Y_MASK));
+	z = (uint32_t)(_pext_u64(m, BMI_3D_Z_MASK));
+}

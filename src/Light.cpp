@@ -12,3 +12,9 @@ SpotLight::SpotLight(float3 dir_, float3 pos_, float3 color_, float angle_) {
 	color = color_;
 	angle = angle_;
 }
+
+AreaLight::AreaLight(float3 pos_, float3 color_, float radius_) {
+	pos = pos_;
+	color = color_;
+	radius = radius_;
+}

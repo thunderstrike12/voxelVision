@@ -371,5 +371,6 @@ public:
 #include "renderer.h"
 #include "src/Light.h"
 #include "src/Material.h"
+#include "src/Builder.h"
 
 // EOF
