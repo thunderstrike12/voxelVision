@@ -216,8 +216,9 @@ void Scene::FindNearestExitDie(Ray& ray, const int layer) const
 	while (1)
 	{
 		ray.steps++;
-		const uint cell = grids[layer - 1][morton_encode(s.X, s.Y, s.Z)];
-		if ((((cell != Scene::GLASS && cell != Scene::DIAMOND) && cell != 0) && layer == 1) || (cell && layer != 1))
+		const uint cell = grids[0][morton_encode(s.X, s.Y, s.Z)];
+		//if ((((cell != Scene::GLASS && cell != Scene::DIAMOND) && cell) && layer == 1) || (cell && layer != 1))
+		if (cell != Scene::GLASS && cell != Scene::DIAMOND)
 		{
 			ray.t = s.t;
 			ray.I = ray.O + ray.t * ray.D;

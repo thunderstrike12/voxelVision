@@ -66,7 +66,6 @@ public:
 	int steps = 0;
 	uint8_t entering = 0;
 	uint8_t exiting = 0;
-	bool inside = false;
 private:
 	// min3 is used in normal reconstruction.
 	__inline static float3 min3( const float3& a, const float3& b )

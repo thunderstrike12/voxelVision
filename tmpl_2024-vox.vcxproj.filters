@@ -42,6 +42,7 @@
     <ClCompile Include="src\Light.cpp" />
     <ClCompile Include="src\Material.cpp" />
     <ClCompile Include="src\Builder.cpp" />
+    <ClCompile Include="src\Primitives.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="renderer.h" />
@@ -97,6 +98,7 @@
     <ClInclude Include="src\Light.h" />
     <ClInclude Include="src\Material.h" />
     <ClInclude Include="src\Builder.h" />
+    <ClInclude Include="src\Primitives.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="template">

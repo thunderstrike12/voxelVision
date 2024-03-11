@@ -4,6 +4,7 @@
 class PointLight;
 class Material;
 class Builder;
+class Sphere;
 
 namespace Tmpl8
 {
@@ -13,7 +14,7 @@ class Renderer : public TheApp
 public:
 	// game flow methods
 	void Init();
-	float3 Trace( Ray& ray, bool dielectric = false );
+	float3 Trace( Ray& ray );
 	void resetAcc();
 	void Tick( float deltaTime );
 	void UI();
@@ -47,6 +48,10 @@ public:
 	float reflectivity;
 	float glossyness;
 	float refraction;
+	float3 absorption;
+	float power = 1;
+
+	Sphere* sphere;
 
 	vector <PointLight> pLight;
 	vector <SpotLight> sLight;

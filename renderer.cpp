@@ -93,24 +93,51 @@ void Renderer::Init()
 
 	build = new Builder();
 
+	sphere = new Sphere(float3(0, 0, 0), 1);
+
 	int skyChannels;
 	skyData = stbi_loadf("assets/sky.hdr", &skyWidth, &skyHeight, &skyChannels, 0);
 	for (int i = 0; i < skyWidth * skyHeight * 3; i++)
 		skyData[i] = sqrtf(skyData[i]); // Gamma Adjustment for Reduced HDR Range
 }
 
+float3  snellsLaw(Ray ray, float3 N, float n1, float n2) {
+	float eta = n2 / n1;
+
+	float b = dot(N, -ray.D);
+
+
+	float k = 1 - (eta * eta) * (1 - (b * b));
+	if (k >= 0)
+	{
+		return float3(eta * ray.D + N * ((eta * b) - sqrt(k)));
+	}
+	else
+	{
+		return float3(-1, -1, -1);
+	}
+}
+
 // -----------------------------------------------------------
 // Evaluate light transport
-// -----------------------------------------------------------
-float3 Renderer::Trace( Ray& ray, bool dielectric )
+// ----------------------------------------------------------
+float3 Renderer::Trace(Ray& ray)
 {
+	if (ray.depth > 5) 
+		return 0;
+	ray.depth++;
+
 	ray.t = 0;
-	if (dielectric) {
-		scene.FindNearestExitDie(ray, GRIDLAYERS);
+
+	scene.FindNearest(ray, GRIDLAYERS);
+	float min = 0, max = 0;
+	if (sphere->intersect(ray, min, max)) {
+		if (min < ray.t) {
+			ray.t = min;
+		}
 	}
-	else {
-		scene.FindNearest(ray, GRIDLAYERS);
-	}
+
+	//skydome code from milan bonten
 	if (ray.voxel == 0) {
 		float3 dir = normalize(ray.D);
 		uint u = skyWidth * atan2f(dir.z, dir.x) * INV2PI - 0.5f;
@@ -125,11 +152,11 @@ float3 Renderer::Trace( Ray& ray, bool dielectric )
 	float3 albedo = float3(1, 1, 1);
 
 	ray.entering = ray.GetMaterial();
-	Material* matExit = materials[ray.exiting ];
-	Material* matEnter = materials[ray.GetMaterial() - 1];
+	Material* matExit = materials[ray.exiting];
+	Material* matEnter = materials[clamp(ray.GetMaterial() - 1, 0, 10)];
 
 
-	if(matEnter == materials[Scene::METAL - 1])
+	if (matEnter == materials[Scene::METAL - 1])
 		matEnter->reflectivity = reflectivity;
 	if (matEnter == materials[Scene::METAL - 1])
 		matEnter->glossyness = glossyness;
@@ -151,37 +178,124 @@ float3 Renderer::Trace( Ray& ray, bool dielectric )
 		if (secondary.depth >= 20) return float3(0);
 
 		reflResult = Trace(secondary);
+
 	}
 
 	float3 refrResult = 0;
-	if (matEnter->refraction > 1.0f || dielectric) {
-		float eta = 0;
-		eta = matExit->refraction / matEnter->refraction;
+	float3 secI;
+	if (matEnter->refraction > 1.0f) {
+		float3 Dir = normalize( snellsLaw(ray, normalize( N), 1, refraction));
+		Ray secondary(ray.IntersectionPoint(), ray.D);
+		scene.FindNearestExitDie(secondary, 1);
+		secI = secondary.IntersectionPoint();
 
-		float theta1 = dot(N, -ray.D);
-		float cosTheta1 = cos(theta1);
-		float k = 1 - (eta * eta) * (1 - cosTheta1 * cosTheta1);
-
-		if (k >= 0) {
-			float3 T = eta * ray.D + N * (eta * cosTheta1 - sqrt(k));
-			Ray secondary(I, T);
-			secondary.depth = ray.depth + 1;
-			if (secondary.depth > 20) return float3(0);
-
-			secondary.exiting = ray.entering - 1;
-			if (ray.entering == Scene::GLASS || ray.entering == Scene::DIAMOND) {
-				refrResult = Trace(secondary, true);
-			}
-			else {
-				refrResult = Trace(secondary);
-			}
+		Dir = normalize( snellsLaw(ray, normalize(secondary.GetNormal()), refraction, 1));
+		
+		if (Dir.x == -1 && Dir.y == -1 && Dir.z == -1)
+		{
+			return float3(0, 0, 0);
 		}
-		else {
-			//TIR
+		else
+		{
+
+			Ray third(secI, Dir);
+			third.depth = ray.depth;
+			
+			refrResult = Trace(third);
 		}
+
+
+
+		//float eta = 0;
+		//eta = matExit->refraction / matEnter->refraction;
+
+		//float theta1 = dot(N, -ray.D);
+		//float cosTheta1 = cos(theta1);
+		//float k = 1 - (eta * eta) * (1 - cosTheta1 * cosTheta1);
+
+		//if (k >= 0) {
+		//	float3 T = eta * ray.D + N * (eta * cosTheta1 - sqrt(k));
+		//	Ray secondary(I, T);
+		//	//secondary.depth = ray.depth + 1;
+		//	//if (secondary.depth > 20) return float3(0);
+
+		//	secondary.exiting = ray.entering - 1;
+		//	//if (ray.entering == Scene::GLASS || ray.entering == Scene::DIAMOND) {
+		//		//refrResult = Trace(secondary, true);
+		//		scene.FindNearestExitDie(secondary, 0);
+		//		float3 secI = secondary.O + secondary.D * secondary.t;
+
+		//		eta = matEnter->refraction / matExit->refraction;
+
+		//		float theta1 = dot(-N, -ray.D);
+		//		float cosTheta1 = cos(theta1);
+		//		float k = 1 - (eta * eta) * (1 - cosTheta1 * cosTheta1);
+		//		if (k >= 0) {
+		//			float3 T = eta * ray.D + -N * (eta * cosTheta1 - sqrt(k));
+		//			Ray third(secI - N * 0.001f, T);
+		//			refrResult = Trace(third);
+		//		}
+		//		else {
+		//			//TIR
+		//		}
+		//	//}
+		//	//else {
+		//	//	refrResult = Trace(secondary);
+		//	//}
+		//}
+		//else {
+		//	//TIR
+		//}
 	}
 
+	//float3 refrResult = 0;
+	//float3 secI;
+	//if ((matEnter->refraction > 1.0f || dielectric) && matEnter != matExit) {
+	//	float eta = 0;
+
+	//	eta = matEnter->refraction / matExit->refraction;
+
+	//	float theta1 = dot(N, -ray.D);
+	//	float cosTheta1 = cos(theta1);
+	//	float k = 1 - (eta * eta) * (1 - cosTheta1 * cosTheta1);
+
+	//	Ray secondary;
+	//	if (k >= 0) {
+	//		float3 T = eta * ray.D + N * (eta * cosTheta1 - sqrt(k));
+	//		secondary = Ray(I - N * 0.001f, T);
+	//		scene.FindNearestExitDie(secondary, 1);
+
+	//		eta = 1.5;
+
+
+	//		float3 secN = secondary.GetNormal();
+
+	//		theta1 = dot(-N, -secondary.D);
+	//		cosTheta1 = cos(theta1);
+	//		k = 1 - (eta * eta) * (1 - cosTheta1 * cosTheta1);
+
+	//		if (k >= 0) {
+	//			float3 T = eta * secondary.D + -N * (eta * cosTheta1 - sqrt(k));
+	//			secI = secondary.O + secondary.D * secondary.t;
+	//			Ray third(secI + -N * 0.001f, T);
+
+	//			third.depth = ray.depth++;
+	//			if (third.depth > 20) return(1, 0, 0);
+	//			refrResult = Trace(third);
+	//		}
+	//		else {
+	//			//TIR
+	//		}
+	//	}
+	//	else {
+	//		// Total Internal Reflection
+	//		float3 R = ray.D - 2 * N * dot(N, ray.D);
+	//		secondary = Ray(I - N * 0.001f, R);
+	//	}
+	//}
+
 	float reflectance;
+	float absorpResult;
 	if (matEnter->refraction > 1.0f) {
 		float angle = dot(N, ray.D);
 
@@ -200,9 +314,31 @@ float3 Renderer::Trace( Ray& ray, bool dielectric )
 		float reflectance = 0.5 * (term1 * term1 + term2 * term2);
 
 		reflectance = std::clamp(reflectance, 0.0f, 1.0f);
+		
+		if (RandomFloat() > reflectance) {
+			refrResult = reflResult;
+		}
 
-		refrResult = (1.0 - reflectance) * refrResult + reflectance * reflResult;
+		//refrResult = (1.0 - reflectance) * reflResult + reflectance * refrResult;
+		/*float d = std::clamp(ray.t * GRIDSIZE / 2.0f, 0.0f, 1.0f);
+
+		refrResult = refrResult * (1 - d) + -matEnter->absorption * d;*/
+		float d = length(I - secI) * pow(10, power);
+
+		float3 absorption = exp(-matEnter->absorption * d);
+
+		// Apply Beer's Law to the result
+		refrResult *= absorption;
+
+		/*float expx = exp(-absorption.x * d);
+		float expy = exp(-absorption.y * d);
+		float expz = exp(-absorption.z * d);
+
+		refrResult.x *= expx;
+		refrResult.y *= expy;
+		refrResult.z *= expz;*/
 	}
+
 	
 	float3 pLightColor = 0;
 	for (int i = 0; i < pLight.size(); i++)
@@ -275,7 +411,7 @@ float3 Renderer::Trace( Ray& ray, bool dielectric )
 	float3 finalColor = dirLightColor + pLightColor + sLightColor + aLightColor;
 
 	if (matEnter->refraction > 1.0f) {
-		finalColor = (refrResult * (0.5)) + (finalColor * (1 - (0.5)));
+		finalColor = (refrResult * (1)) + (finalColor * (1 - (1)));
 	}
 	else {
 		finalColor = (reflResult * matEnter->reflectivity) + (finalColor * (1 - matEnter->reflectivity));
@@ -394,6 +530,14 @@ void Renderer::UI()
 		ImGui::SliderFloat("reflectivity", &reflectivity, 0.0f, 1.0f);
 		ImGui::SliderFloat("glossyness", &glossyness, 0.0f, 1.0f);
 		ImGui::SliderFloat("refraction", &refraction, 1.0f, 5.0f);
+
+		ImGui::SliderFloat("absorption", &materials[2]->absorption, 0.0f, 2.0f);
+		ImGui::SliderFloat("power", &power, 1.0f, 10.0f);
+	}
+
+	if (ImGui::CollapsingHeader("primitives")) {
+		ImGui::SliderFloat3("sphere pos", &sphere->pos.x, 0.0f, 1.0f);
+		ImGui::SliderFloat("sphere rad", &sphere->rad, 0.0f, 1.0f);
 	}
 
 	if (ImGui::CollapsingHeader("building")) {

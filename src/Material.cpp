@@ -23,6 +23,7 @@ Ray Metal::reflectRay(Ray ray) {
 Glass::Glass() {
 	refraction = 1.52;
 	color = float3(0.5, 0.5, 0.5);
+	absorption = 0.5;
 }
 
 Ray Glass::reflectRay(Ray ray) {
@@ -32,6 +33,7 @@ Ray Glass::reflectRay(Ray ray) {
 Diamond::Diamond() {
 	refraction = 1.9;
 	color = float3(0.5, 0.5, 0.5);
+	absorption = 0.5;
 }
 
 Ray Diamond::reflectRay(Ray ray)
